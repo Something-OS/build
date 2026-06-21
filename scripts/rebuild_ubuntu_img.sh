@@ -43,6 +43,32 @@ if [ -f "${DEVICE_DIR}/system.prop" ]; then
     sudo cp "${DEVICE_DIR}/system.prop" "${ROOTFS}/etc/system.prop"
 fi
 
+# 2c. Configure default UI session
+TARGET_SESSION="${DEFAULT_UI:-androidshell}"
+print_info "Configuring default UI session to: ${TARGET_SESSION}..."
+
+if [ -f "${ROOTFS}/var/lib/AccountsService/users/ubuntu" ]; then
+    sudo sed -i "s/^Session=.*/Session=${TARGET_SESSION}/" "${ROOTFS}/var/lib/AccountsService/users/ubuntu"
+else
+    sudo mkdir -p "${ROOTFS}/var/lib/AccountsService/users"
+    sudo tee "${ROOTFS}/var/lib/AccountsService/users/ubuntu" > /dev/null << SESSIONEOF
+[User]
+Session=${TARGET_SESSION}
+SystemAccount=false
+SESSIONEOF
+fi
+
+if [ -f "${ROOTFS}/etc/gdm3/custom.conf" ]; then
+    if sudo grep -q "^AutomaticLoginSession" "${ROOTFS}/etc/gdm3/custom.conf"; then
+        sudo sed -i "s/^AutomaticLoginSession.*/AutomaticLoginSession = ${TARGET_SESSION}/" "${ROOTFS}/etc/gdm3/custom.conf"
+    elif sudo grep -q "^#AutomaticLoginSession" "${ROOTFS}/etc/gdm3/custom.conf"; then
+        sudo sed -i "s/^#AutomaticLoginSession.*/AutomaticLoginSession = ${TARGET_SESSION}/" "${ROOTFS}/etc/gdm3/custom.conf"
+    else
+        sudo sed -i "/\[daemon\]/a AutomaticLoginSession = ${TARGET_SESSION}" "${ROOTFS}/etc/gdm3/custom.conf"
+    fi
+fi
+
+
 REPO_ROOT="$(cd "${WORKSPACE}/.." && pwd)"
 
 if [ -n "$PRODUCT_COPY_FILES" ]; then

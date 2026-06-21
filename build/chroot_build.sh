@@ -1,4 +1,5 @@
 #!/bin/bash
+export DEFAULT_UI="androidshell"
 set -e
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export HOME=/root
@@ -36,5 +37,83 @@ chmod +x /home/ubuntu/desktop-environment/androidshell-session
 cp ../switch-to-androidshell /usr/local/bin/switch-to-androidshell
 cp ../switch-to-phosh /usr/local/bin/switch-to-phosh
 chmod +x /usr/local/bin/switch-to-androidshell /usr/local/bin/switch-to-phosh
+
+# 1. Create gnome-session definition
+mkdir -p /usr/share/gnome-session/sessions
+cat << 'SESSIONEOF' > /usr/share/gnome-session/sessions/androidshell.session
+[GNOME Session]
+Name=AndroidShell
+RequiredComponents=org.gnome.SettingsDaemon.A11ySettings;org.gnome.SettingsDaemon.Color;org.gnome.SettingsDaemon.Datetime;org.gnome.SettingsDaemon.Housekeeping;org.gnome.SettingsDaemon.Keyboard;org.gnome.SettingsDaemon.MediaKeys;org.gnome.SettingsDaemon.Power;org.gnome.SettingsDaemon.PrintNotifications;org.gnome.SettingsDaemon.Rfkill;org.gnome.SettingsDaemon.ScreensaverProxy;org.gnome.SettingsDaemon.Sharing;org.gnome.SettingsDaemon.Smartcard;org.gnome.SettingsDaemon.Sound;org.gnome.SettingsDaemon.UsbProtection;org.gnome.SettingsDaemon.Wacom;org.gnome.SettingsDaemon.Wwan;
+SESSIONEOF
+
+# 2. Create Wayland session desktop entry
+mkdir -p /usr/share/wayland-sessions
+cat << 'SESSIONEOF' > /usr/share/wayland-sessions/androidshell.desktop
+[Desktop Entry]
+Name=AndroidShell
+Comment=AndroidShell Desktop Environment
+Exec=/usr/local/bin/androidshell-session-launcher
+Type=Application
+DesktopNames=AndroidShell;GNOME;
+SESSIONEOF
+
+# 3. Create startup script
+cat << 'SESSIONEOF' > /usr/local/bin/androidshell-startup
+#!/bin/bash
+exec > /tmp/androidshell-startup.log 2>&1
+echo "[STARTUP] Starting AndroidShell startup script..."
+sleep 2
+/home/ubuntu/desktop-environment/androidshell-session &
+echo "[STARTUP] Running gnome-session..."
+exec bash -lc "exec gnome-session --disable-acceleration-check --session=androidshell"
+SESSIONEOF
+chmod +x /usr/local/bin/androidshell-startup
+
+# 4. Create session launcher
+cat << 'SESSIONEOF' > /usr/local/bin/androidshell-session-launcher
+#!/bin/sh
+export WLR_BACKENDS=drm,libinput
+export WLR_LOG_LEVEL=debug
+PHOC_INI="/usr/share/phosh/phoc.ini"
+if [ -f /etc/phosh/phoc.ini ]; then
+  PHOC_INI=/etc/phosh/phoc.ini
+fi
+exec /usr/bin/phoc -C "${PHOC_INI}" -E /home/ubuntu/desktop-environment/androidshell-session > /tmp/androidshell-phoc.log 2>&1
+SESSIONEOF
+chmod +x /usr/local/bin/androidshell-session-launcher
+
+# 5. Configure udev rules
+mkdir -p /etc/udev/rules.d
+cat << 'SESSIONEOF' > /etc/udev/rules.d/99-backlight.rules
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"
+ACTION=="add", SUBSYSTEM=="leds", RUN+="/bin/chgrp video /sys/class/leds/%k/brightness", RUN+="/bin/chmod g+w /sys/class/leds/%k/brightness", RUN+="/bin/chgrp video /sys/class/leds/%k/trigger", RUN+="/bin/chmod g+w /sys/class/leds/%k/trigger"
+SESSIONEOF
+
+# 6. Ensure ubuntu user is in input group
+usermod -aG input ubuntu || true
+
+# 7. Set default session in AccountsService and GDM autologin
+TARGET_SESSION="${DEFAULT_UI}"
+if [ -f /var/lib/AccountsService/users/ubuntu ]; then
+    sed -i "s/^Session=.*/Session=${TARGET_SESSION}/" /var/lib/AccountsService/users/ubuntu
+else
+    mkdir -p /var/lib/AccountsService/users
+    cat << SESSIONEOF > /var/lib/AccountsService/users/ubuntu
+[User]
+Session=${TARGET_SESSION}
+SystemAccount=false
+SESSIONEOF
+fi
+
+# 8. Set AutomaticLoginSession in gdm3 custom.conf
+if [ -f /etc/gdm3/custom.conf ]; then
+    if grep -q "^AutomaticLoginSession" /etc/gdm3/custom.conf; then
+        sed -i "s/^AutomaticLoginSession.*/AutomaticLoginSession = ${TARGET_SESSION}/" /etc/gdm3/custom.conf
+    elif grep -q "^#AutomaticLoginSession" /etc/gdm3/custom.conf; then
+        sed -i "s/^#AutomaticLoginSession.*/AutomaticLoginSession = ${TARGET_SESSION}/" /etc/gdm3/custom.conf
+    else
+        sed -i "/\[daemon\]/a AutomaticLoginSession = ${TARGET_SESSION}" /etc/gdm3/custom.conf
+    fi
+fi
 
 chown -R 1000:1000 /home/ubuntu/desktop-environment
