@@ -46,8 +46,9 @@ print_info "Entering chroot environment to compile desktop shell..."
 
 # Create a build script to run inside the chroot
 mkdir -p build
-cat << 'EOF' > build/chroot_build.sh
-#!/bin/bash
+echo "#!/bin/bash" > build/chroot_build.sh
+echo "export DEFAULT_UI=\"${DEFAULT_UI:-androidshell}\"" >> build/chroot_build.sh
+cat << 'EOF' >> build/chroot_build.sh
 set -e
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export HOME=/root
@@ -140,14 +141,15 @@ SESSIONEOF
 # 6. Ensure ubuntu user is in input group
 usermod -aG input ubuntu || true
 
-# 7. Set default session in AccountsService
+# 7. Set default session in AccountsService and GDM autologin
+TARGET_SESSION="${DEFAULT_UI}"
 if [ -f /var/lib/AccountsService/users/ubuntu ]; then
-    sed -i 's/^Session=.*/Session=androidshell/' /var/lib/AccountsService/users/ubuntu
+    sed -i "s/^Session=.*/Session=${TARGET_SESSION}/" /var/lib/AccountsService/users/ubuntu
 else
     mkdir -p /var/lib/AccountsService/users
-    cat << 'SESSIONEOF' > /var/lib/AccountsService/users/ubuntu
+    cat << SESSIONEOF > /var/lib/AccountsService/users/ubuntu
 [User]
-Session=androidshell
+Session=${TARGET_SESSION}
 SystemAccount=false
 SESSIONEOF
 fi
@@ -155,11 +157,11 @@ fi
 # 8. Set AutomaticLoginSession in gdm3 custom.conf
 if [ -f /etc/gdm3/custom.conf ]; then
     if grep -q "^AutomaticLoginSession" /etc/gdm3/custom.conf; then
-        sed -i 's/^AutomaticLoginSession.*/AutomaticLoginSession = androidshell/' /etc/gdm3/custom.conf
+        sed -i "s/^AutomaticLoginSession.*/AutomaticLoginSession = ${TARGET_SESSION}/" /etc/gdm3/custom.conf
     elif grep -q "^#AutomaticLoginSession" /etc/gdm3/custom.conf; then
-        sed -i 's/^#AutomaticLoginSession.*/AutomaticLoginSession = androidshell/' /etc/gdm3/custom.conf
+        sed -i "s/^#AutomaticLoginSession.*/AutomaticLoginSession = ${TARGET_SESSION}/" /etc/gdm3/custom.conf
     else
-        sed -i '/\[daemon\]/a AutomaticLoginSession = androidshell' /etc/gdm3/custom.conf
+        sed -i "/\[daemon\]/a AutomaticLoginSession = ${TARGET_SESSION}" /etc/gdm3/custom.conf
     fi
 fi
 

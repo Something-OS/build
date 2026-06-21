@@ -47,6 +47,8 @@ export LOOP_OFFSET=$(get_config "BOARD_LOOP_OFFSET")
 export ROOTFS_LABEL=$(get_config "BOARD_ROOTFS_LABEL")
 export KERNEL_DIR=$(get_config "BOARD_KERNEL_DIR")
 export KERNEL_DEFCONFIG=$(get_config "BOARD_KERNEL_DEFCONFIG")
+export BOARD_DEFAULT_UI=$(get_config "BOARD_DEFAULT_UI")
+export DEFAULT_UI="${BOARD_DEFAULT_UI:-androidshell}"
 export DEVICE_DIR="$(dirname "$CONFIG_FILE")"
 
 # ANSI color codes for Android ROM-style logging
