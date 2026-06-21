@@ -11,18 +11,19 @@ if [ -z "$DEVICE" ]; then
     fi
 fi
 
-# Find the device BoardConfig.mk, looking at relative locations
-CONFIG_FILE=""
-if [ -f "device/oneplus/${DEVICE}/BoardConfig.mk" ]; then
-    CONFIG_FILE="device/oneplus/${DEVICE}/BoardConfig.mk"
-elif [ -f "../device/oneplus/${DEVICE}/BoardConfig.mk" ]; then
-    CONFIG_FILE="../device/oneplus/${DEVICE}/BoardConfig.mk"
+# Find the device BoardConfig.mk, looking at relative locations (vendor-agnostic wildcard)
+CONFIG_FILE=$(ls device/*/${DEVICE}/BoardConfig.mk 2>/dev/null | head -n1)
+if [ -z "$CONFIG_FILE" ]; then
+    CONFIG_FILE=$(ls ../device/*/${DEVICE}/BoardConfig.mk 2>/dev/null | head -n1)
 fi
 
 if [ -z "$CONFIG_FILE" ]; then
     echo "ERROR: BoardConfig.mk for device '$DEVICE' not found!" >&2
     exit 1
 fi
+
+# Convert CONFIG_FILE to absolute path
+CONFIG_FILE="$(cd "$(dirname "$CONFIG_FILE")" && pwd)/$(basename "$CONFIG_FILE")"
 
 get_config() {
     local key="$1"
@@ -44,6 +45,8 @@ export BOOTIMG_HEADER_VERSION=$(get_config "BOARD_BOOTIMG_HEADER_VERSION")
 export UFS_PARTITION=$(get_config "BOARD_UFS_PARTITION")
 export LOOP_OFFSET=$(get_config "BOARD_LOOP_OFFSET")
 export ROOTFS_LABEL=$(get_config "BOARD_ROOTFS_LABEL")
+export KERNEL_DIR=$(get_config "BOARD_KERNEL_DIR")
+export KERNEL_DEFCONFIG=$(get_config "BOARD_KERNEL_DEFCONFIG")
 export DEVICE_DIR="$(dirname "$CONFIG_FILE")"
 
 # ANSI color codes for Android ROM-style logging
