@@ -1,0 +1,12 @@
+#!/bin/bash
+[ -f /etc/profile ] && . /etc/profile
+export XDG_SESSION_TYPE=wayland
+export QT_QPA_PLATFORM=wayland
+export QT_QPA_PLATFORMTHEME=KDE
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+export EGL_PLATFORM=wayland
+export QT_QUICK_CONTROLS_MOBILE=true
+export PLASMA_INTEGRATION_USE_PORTAL=1
+export PLASMA_PLATFORM=phone:handset
+export PLASMA_DEFAULT_SHELL=org.kde.plasma.phoneshell
+exec kwin_wayland --drm --xwayland --exit-with-session /usr/bin/startplasmamobile-inner

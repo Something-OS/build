@@ -1,0 +1,5 @@
+#!/bin/bash
+echo '[User]
+Session=plasma-mobile
+SystemAccount=false' > /var/lib/AccountsService/users/ubuntu
+echo 'Successfully set default to Plasma Mobile. Please RESTART now.'

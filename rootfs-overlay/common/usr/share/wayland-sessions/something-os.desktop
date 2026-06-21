@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Something OS
+Comment=Custom Desktop Shell for OnePlus 6T
+Exec=/home/ubuntu/desktop-environment/androidshell-session
+Type=Application
+DesktopNames=SomethingOS
