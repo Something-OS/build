@@ -43,15 +43,23 @@ if [ -f "${DEVICE_DIR}/system.prop" ]; then
     sudo cp "${DEVICE_DIR}/system.prop" "${ROOTFS}/etc/system.prop"
 fi
 
+REPO_ROOT="$(cd "${WORKSPACE}/.." && pwd)"
+
 if [ -n "$PRODUCT_COPY_FILES" ]; then
     print_info "Copying product files (PRODUCT_COPY_FILES)..."
     for file_pair in $PRODUCT_COPY_FILES; do
         src=$(echo "$file_pair" | cut -d':' -f1)
         dest=$(echo "$file_pair" | cut -d':' -f2)
-        if [ -f "$src" ]; then
-            print_info "  Copying $src -> $dest"
+        
+        resolved_src="$src"
+        if [ ! -f "$resolved_src" ] && [ -f "${REPO_ROOT}/${src}" ]; then
+            resolved_src="${REPO_ROOT}/${src}"
+        fi
+
+        if [ -f "$resolved_src" ]; then
+            print_info "  Copying $resolved_src -> $dest"
             sudo mkdir -p "$(dirname "${ROOTFS}/${dest}")"
-            sudo cp -p "$src" "${ROOTFS}/${dest}"
+            sudo cp -p "$resolved_src" "${ROOTFS}/${dest}"
         else
             print_warn "Source file $src not found!"
         fi
@@ -84,9 +92,19 @@ sudo sync
 sudo umount mnt_tmp
 sudo losetup -d "$LOOP_DEV"
 
+# Free page cache to prevent memory/swap exhaustion during sparse conversion
+print_info "Freeing system page cache before sparse conversion..."
+sudo sync
+echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null
+
 # 6. Sparse conversion
 print_info "Converting to Android Sparse image..."
 img2simg "$IMAGE" "$SPARSE_IMAGE"
+
+# Free page cache again to leave the host system clean
+print_info "Freeing system page cache after sparse conversion..."
+sudo sync
+echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null
 
 print_success "ubuntu_sparse.img is ready at out/target/product/${DEVICE}/ubuntu_sparse.img"
 

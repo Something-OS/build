@@ -14,6 +14,21 @@ ROOTFS_DIR="../rootfs"
 SRC_DIR="../androidshell"
 CHROOT_SRC="/opt/desktop_build"
 
+# Define cleanup function for exit trap
+cleanup() {
+    print_info "Cleaning up chroot mounts and files..."
+    sudo umount -l "${ROOTFS_DIR}/dev/pts" 2>/dev/null || true
+    sudo umount -l "${ROOTFS_DIR}/dev" 2>/dev/null || true
+    sudo umount -l "${ROOTFS_DIR}/sys" 2>/dev/null || true
+    sudo umount -l "${ROOTFS_DIR}/proc" 2>/dev/null || true
+    sudo rm -f "${ROOTFS_DIR}/tmp/chroot_build.sh" 2>/dev/null || true
+    sudo rm -rf "${ROOTFS_DIR}${CHROOT_SRC}" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# Clean up any leftover mounts/files from previous runs before starting
+cleanup
+
 print_info "Setting up ARM64 chroot environment..."
 
 # Ensure qemu static binary is present in the rootfs
@@ -78,30 +93,13 @@ chmod +x build/chroot_build.sh
 sudo cp build/chroot_build.sh "${ROOTFS_DIR}/tmp/"
 
 # Mount necessary filesystems
-sudo mount -t proc /proc "${ROOTFS_DIR}/proc"
-sudo mount -t sysfs /sys "${ROOTFS_DIR}/sys"
-sudo mount -o bind /dev "${ROOTFS_DIR}/dev"
-sudo mount -o bind /dev/pts "${ROOTFS_DIR}/dev/pts"
-
-# Setup DNS for apt
-sudo mv "${ROOTFS_DIR}/etc/resolv.conf" "${ROOTFS_DIR}/etc/resolv.conf.bak" || true
-sudo cp /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
+sudo mount -t proc proc "${ROOTFS_DIR}/proc"
+sudo mount -t sysfs sysfs "${ROOTFS_DIR}/sys"
+sudo mount --bind /dev "${ROOTFS_DIR}/dev"
+sudo mount --bind /dev/pts "${ROOTFS_DIR}/dev/pts"
 
 # Execute the build inside chroot
-sudo chroot "${ROOTFS_DIR}" /bin/bash -c "apt-get update && apt-get install -y cmake make build-essential qt6-base-dev qt6-declarative-dev liblayershellqtinterface-dev && /bin/bash /tmp/chroot_build.sh"
-
-# Cleanup DNS
-sudo rm "${ROOTFS_DIR}/etc/resolv.conf"
-sudo mv "${ROOTFS_DIR}/etc/resolv.conf.bak" "${ROOTFS_DIR}/etc/resolv.conf" || true
-
-# Cleanup
-print_info "Unmounting chroot virtual filesystems..."
-sudo umount "${ROOTFS_DIR}/dev/pts"
-sudo umount "${ROOTFS_DIR}/dev"
-sudo umount "${ROOTFS_DIR}/sys"
-sudo umount "${ROOTFS_DIR}/proc"
-sudo rm "${ROOTFS_DIR}/tmp/chroot_build.sh"
-sudo rm -rf "${ROOTFS_DIR}${CHROOT_SRC}"
+sudo chroot "${ROOTFS_DIR}" /bin/bash /tmp/chroot_build.sh
 
 print_success "Desktop shell compiled and installed successfully inside chroot!"
 

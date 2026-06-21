@@ -73,6 +73,7 @@ apt-get install -y \
     qt6-declarative-dev \
     qt6-wayland-dev \
     libqt6svg6-dev \
+    liblayershellqtinterface-dev \
     gdm3
 
 # Set locale

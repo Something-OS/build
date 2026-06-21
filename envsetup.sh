@@ -116,6 +116,7 @@ echo -e "    - ${GREEN}m${NC}        : Build target components
                    • ${YELLOW}rootfs${NC}     : Package Ubuntu raw & sparse system images
                    • ${YELLOW}flash${NC}      : Flash boot.img to device via fastboot
                    • ${YELLOW}flash-all${NC}  : Flash boot & rootfs to device via fastboot
+                   • ${YELLOW}recovery-zip${NC}: Package recovery flashable zip image
                    • ${YELLOW}deploy${NC}     : Pack & deploy UI build to physical device
                    • ${YELLOW}setup-rootfs${NC}: Download and extract base rootfs dynamically
                    • ${YELLOW}bootstrap-rootfs${NC}: Install build tools/libs inside chroot environment
